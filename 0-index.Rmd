@@ -5,8 +5,6 @@ author:
     affiliation: # "1", "2", "3"
     corresponding: # true|false
     email: 
-  - name: 
-    affiliation: 
 affiliations:
   - id: # "1", "2", "3"
     text: # "Czech Academy of Sciences, Institute of Vertebrate Biology, Brno, Czech Republic"
@@ -36,7 +34,7 @@ knitr::opts_chunk$set(
   message = FALSE,
   fig.path = "/home/urtzi/Documents/GitHub/alpestris_lineages/manuscript/0-index_files/figure-latex/"
 )
-renv::load("..")
+# renv::load("..")
 # knitr::write_bib(c(installed.packages()), "./packages.bib")
 ```
 

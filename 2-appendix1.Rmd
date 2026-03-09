@@ -1,0 +1,26 @@
+\newpage
+\stopEndfloat
+\newrefsection
+\setcounter{linenumber}{1}
+\setcounter{section}{0}
+\renewcommand{\thefigure}{S1.\arabic{figure}}
+\setcounter{figure}{0}
+\renewcommand{\thetable}{S1.\arabic{table}}
+\setcounter{table}{0}
+
+\refstepcounter{appendix}\label{appendix1}
+\begin{center}
+\Large \textbf{Appendix 1 for:}
+\end{center}
+
+\titleblock
+\large
+
+\newpage
+\blandscape
+
+# Some title
+
+# References
+
+\printbibliography[heading=none]
