@@ -1,0 +1,188 @@
+\documentclass[12pt,]{article}
+
+\newcommand{\titleblock}{
+    \begin{center}
+        % title
+        \LARGE $title$
+
+        \vspace{1em}
+        % author list
+        \large
+        $for(author)$$author.name$$if(author.affiliation)$\textsuperscript{$author.affiliation$}$endif$$if(author.corresponding)$\textsuperscript{*}$endif$$sep$,\space
+$endfor$
+
+        \vspace{0.5em}
+        % affiliations
+        \small
+        $for(affiliations)$\textsuperscript{$affiliations.id$}$affiliations.text$ \par
+        $endfor$
+        % corresponding author
+        $for(author)$$if(author.corresponding)$\textsuperscript{*}Corresponding author: $author.email$$endif$$endfor$
+    \end{center}
+    \normalsize
+}
+
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+\PassOptionsToPackage{dvipsnames,svgnames,x11names}{xcolor}
+
+\usepackage{amsmath,amssymb}
+\usepackage{upgreek,bbold}
+\usepackage{iftex}
+\usepackage{lscape} % for landscape pages
+\newcommand{\blandscape}{\begin{landscape}} % but have to redefine the commands to be able to use them with pandoc
+\newcommand{\elandscape}{\end{landscape}} % but have to redefine the commands to be able to use them with pandoc
+% \usepackage{unicode-math} % this also loads fontspec
+% \defaultfontfeatures{Scale=MatchLowercase}
+% \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\usepackage{lmodern}
+% set mainfont with pandoc_args
+$if(mainfont)$
+  \setmainfont[$for(mainfontoptions)$$mainfontoptions$$sep$,$endfor$]{$mainfont$}
+$endif$
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+    \usepackage[nopatch=footnote]{microtype}
+    \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt plus 2pt minus 1pt}
+\usepackage{xcolor}
+\usepackage[margin=1in]{geometry}
+\usepackage{longtable,booktabs,array}
+\usepackage{calc} % for calculating minipage widths
+% Correct order of tables after \paragraph or \subparagraph
+\usepackage{etoolbox}
+\makeatletter
+\patchcmd\longtable{\par}{\if@noskipsec\mbox{}\fi\par}{}{}
+\makeatother
+% Allow footnotes in longtable head/foot
+\IfFileExists{footnotehyper.sty}{\usepackage{footnotehyper}}{\usepackage{footnote}}
+\makesavenoteenv{longtable}
+\usepackage{graphicx}
+\makeatletter
+\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+\def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
+\makeatother
+% Scale images if necessary, so that they will not overflow the page margins by default
+\setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
+% Set default figure placement to htbp
+\makeatletter
+\def\fps@figure{htbp}
+\makeatother
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{\setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\setcounter{secnumdepth}{5}
+
+\usepackage[style=apa, backend=biber]{biblatex}
+$if(bibliography)$
+$for(bibliography)$
+\addbibresource{$bibliography$}
+$endfor$
+$endif$
+\DeclareDelimFormat[bib,parencite]{finalnamedelim}{
+  \ifnumgreater{\value{liststop}}{2}{\finalandcomma}{}
+  \addspace\bibstring{and}\space}
+\DeclareDelimFormat[bib,parencite,cite]{nameyeardelim}{
+  \addspace}
+\ExecuteBibliographyOptions{maxcitenames=3, mincitenames=1}
+
+\usepackage{caption}
+\captionsetup[figure]{labelsep=colon, name={Fig.}, 
+  labelfont=bf, textfont=it}
+\captionsetup[table]{labelsep=colon, name={Table}, 
+  labelfont=bf, textfont=it, justification=centering}
+
+% align numbers by decimal "." inside tables
+\usepackage{siunitx}
+\sisetup{
+  detect-weight = true,
+  detect-family = true
+}
+
+% handle figures at the end only for maintext (leave appendices as they are)
+\makeatletter
+\let\orig@addcontentsline\addcontentsline
+\makeatother
+
+$if(figures_at_end)$
+  \usepackage[nomarkers]{endfloat}
+  \renewcommand{\listfigurename}{Figure Captions}
+  \usepackage{tocloft}
+  \renewcommand{\cftfigpresnum}{Fig.~}
+  \setlength{\cftfignumwidth}{4.5em}
+
+  \makeatletter
+  \newcommand{\stopEndfloat}{%
+    \clearpage
+    % Stop endfloat from collecting more floats
+    \def\efloat@iwrite##1##2{}%
+    % Flush all delayed floats now
+    \processdelayedfloats
+    \clearpage
+    % Stop writing FIGURES to the List of Figures
+    \def\addcontentsline##1##2##3{%
+      \edef\temp@a{##1}%
+      \edef\temp@b{lof}%
+      \ifx\temp@a\temp@b
+        % suppress LoF entry
+      \else
+        \orig@addcontentsline{##1}{##2}{##3}%
+      \fi
+    }%
+    % Make figures inline (non-floating)
+    \renewenvironment{figure}[1][htbp]{%
+      \def\@captype{figure}%
+      \noindent\begin{minipage}{\textwidth}%
+      \captionsetup{type=figure}%
+    }{%
+      \end{minipage}\par\vspace{\floatsep}%
+    }%
+    % Make tables inline (optional)
+    \renewenvironment{table}[1][htbp]{%
+      \def\@captype{table}%
+      \noindent\begin{minipage}{\textwidth}%
+      \captionsetup{type=table}%
+    }{%
+      \end{minipage}\par\vspace{\floatsep}%
+    }%
+  }
+  \makeatother
+$else$
+  \newcommand{\stopEndfloat}{}
+$endif$
+
+\usepackage{float}
+\floatplacement{table}{H}
+\floatplacement{figure}{H}
+
+\usepackage[left]{lineno}
+\renewcommand{\linenumberfont}{\normalfont\small}
+\linenumbers
+
+\setlength{\parindent}{2em}  % Indent two "M" widths
+
+\usepackage{bookmark}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\urlstyle{same}
+\hypersetup{
+  colorlinks=true,
+  linkcolor={Blue},
+  filecolor={Maroon},
+  citecolor={Blue},
+  urlcolor={Blue},
+  pdfcreator={LaTeX via pandoc}}
+
+\date{\vspace{-2.5em}}
+
+% Create a custom counter for appendices
+\newcounter{appendix}
+\renewcommand{\theappendix}{Appendix \arabic{appendix}}
+
+\begin{document}
+
+$body$
+
+\end{document}

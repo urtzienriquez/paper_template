@@ -1,0 +1,23 @@
+\titleblock
+
+\begin{abstract}
+
+\end{abstract}
+
+\noindent \textbf{Keywords}: First first; Second; Third third; Fourth fourth; Fifth
+
+\large
+
+# Introduction
+
+# Materials and Methods
+
+# Results
+
+# Discussion
+
+## Acknowledgments {-}
+
+# References
+
+\printbibliography[heading=none]
