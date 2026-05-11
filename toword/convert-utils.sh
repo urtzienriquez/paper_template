@@ -6,60 +6,24 @@ toword() {
     local output=""
     local use_move_figures=false
     
-    # Parse arguments
     while [[ $# -gt 0 ]]; do
         case $1 in
-            -m|--move-figures)
-                use_move_figures=true
-                shift
-                ;;
-            -i|--input)
-                input="$2"
-                shift 2
-                ;;
-            -o|--output)
-                output="$2"
-                shift 2
-                ;;
-            *)
-                echo "Unknown option: $1"
-                echo "Usage: toword [-m] -i <input-file> -o <output-file>"
-                echo "  -m, --move-figures    Move figures to bottom"
-                echo "  -i, --input          Input file"
-                echo "  -o, --output         Output file"
-                return 1
-                ;;
+            -m|--move-figures) use_move_figures=true; shift ;;
+            -i|--input) input="$2"; shift 2 ;;
+            -o|--output) output="$2"; shift 2 ;;
+            *) echo "Unknown option: $1"; return 1 ;;
         esac
     done
     
     if [ -z "$input" ] || [ -z "$output" ]; then
-        echo "Error: Both input and output files are required"
-        echo "Usage: toword [-m] -i <input-file> -o <output-file>"
-        return 1
+        echo "Error: Both input and output files are required"; return 1
     fi
-    
-    # Check for bibliography files
-    local bib_files=("zotero.bib" "packages.bib")
-    local missing_bibs=()
-    
-    for bib in "${bib_files[@]}"; do
-        if [ ! -f "$bib" ]; then
-            missing_bibs+=("$bib")
-        fi
-    done
-    
-    if [ ${#missing_bibs[@]} -gt 0 ]; then
-        echo "Warning: Bibliography file(s) not found: ${missing_bibs[*]}"
-        echo "Proceeding without these bibliography files..."
-    fi
-    
-    # Check if TikZ preprocessing is needed
+
     local processed_input="$input"
     if grep -q '\\begin{tikzpicture}' "$input"; then
         echo "TikZ code detected - preprocessing..."
         processed_input="${input%.tex}_processed.tex"
         
-        # Run TikZ preprocessing
         python3 - <<'PYTHON_SCRIPT' "$input" "$processed_input"
 import sys
 import re
@@ -67,85 +31,73 @@ import hashlib
 import os
 import subprocess
 
+def find_balanced(text, start_index):
+    count = 0
+    for i in range(text.find('{', start_index), len(text)):
+        if text[i] == '{': count += 1
+        elif text[i] == '}': count -= 1
+        if count == 0: return i + 1
+    return None
+
 input_file = sys.argv[1]
 output_file = sys.argv[2]
 
 with open(input_file, 'r') as f:
     content = f.read()
 
-# Find all tikzpicture environments
+# 1. Extract Global Styles (Libraries and TikZsets)
+libraries = "\n".join(re.findall(r'\\usetikzlibrary\{.*?\}', content, re.DOTALL))
+tikzsets = []
+search_pos = 0
+while True:
+    match = re.search(r'\\tikzset', content[search_pos:])
+    if not match: break
+    end = find_balanced(content, search_pos + match.start())
+    if end:
+        tikzsets.append(content[search_pos + match.start():end])
+        search_pos = end
+    else: search_pos += 7
+shared_styles = libraries + "\n" + "\n".join(tikzsets)
+
+# 2. Find and Replace TikZ pictures
 tikz_pattern = r'\\begin{tikzpicture}.*?\\end{tikzpicture}'
 matches = list(re.finditer(tikz_pattern, content, re.DOTALL))
 
-print(f"Found {len(matches)} TikZ picture(s)")
-
-# Process each TikZ block
-for match in reversed(matches):  # Reversed to maintain string positions
+for match in reversed(matches):
     tikz_code = match.group(0)
     
-    # Generate unique filename
-    hash_obj = hashlib.sha1(tikz_code.encode())
-    img_name = f"tikz_{hash_obj.hexdigest()[:16]}.png"
+    # Use SHA1 hash for a clean filename
+    img_hash = hashlib.sha1(tikz_code.encode()).hexdigest()[:16]
+    img_name = f"tikz_{img_hash}.png"
     
     if not os.path.exists(img_name):
-        print(f"Compiling: {img_name}")
-        
-        # Create standalone LaTeX document
         tex_content = f"""\\documentclass{{standalone}}
 \\usepackage{{tikz}}
-\\usetikzlibrary{{positioning}}
-\\usetikzlibrary{{backgrounds}}
-\\usetikzlibrary{{arrows.meta}}
-\\usetikzlibrary{{calc}}
-\\usepackage{{graphicx}}
+\\usetikzlibrary{{positioning,backgrounds,arrows.meta,calc}}
+{shared_styles}
 \\begin{{document}}
 {tikz_code}
-\\end{{document}}
-"""
+\\end{{document}}"""
         
-        tex_file = f"{img_name[:-4]}.tex"
-        pdf_file = f"{img_name[:-4]}.pdf"
+        base_name = img_name[:-4]
+        with open(f"{base_name}.tex", 'w') as f: f.write(tex_content)
         
-        with open(tex_file, 'w') as f:
-            f.write(tex_content)
+        subprocess.run(['pdflatex', '-interaction=batchmode', f"{base_name}.tex"], stdout=subprocess.DEVNULL)
+        subprocess.run(['convert', '-density', '300', f"{base_name}.pdf", img_name], stdout=subprocess.DEVNULL)
         
-        # Compile to PDF
-        subprocess.run(['pdflatex', '-interaction=batchmode', tex_file],
-                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        
-        # Convert to PNG
-        subprocess.run(['convert', '-density', '300', pdf_file, img_name],
-                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        
-        # Cleanup
         for ext in ['.tex', '.pdf', '.log', '.aux']:
-            try:
-                os.remove(f"{img_name[:-4]}{ext}")
-            except:
-                pass
+            try: os.remove(f"{base_name}{ext}")
+            except: pass
     
-    # Replace TikZ code with includegraphics
-    replacement = f"\\includegraphics{{{img_name}}}"
-    content = content[:match.start()] + replacement + content[match.end():]
+    # SIMPLE REPLACEMENT (Keep original structure for Titleblock/Filters)
+    content = content[:match.start()] + f"\\includegraphics{{{img_name}}}" + content[match.end():]
 
-# Write processed file
 with open(output_file, 'w') as f:
     f.write(content)
-
-print(f"Preprocessed file: {output_file}")
 PYTHON_SCRIPT
-        
-        if [ $? -ne 0 ]; then
-            echo "Error: TikZ preprocessing failed"
-            return 1
-        fi
     fi
     
-    # Build the pandoc command (no raw_tex needed now!)
-    local cmd=(pandoc "$processed_input"
-        --filter pandoc-crossref)
-    
-    # Add bibliography files only if they exist
+    local cmd=(pandoc "$processed_input" --filter pandoc-crossref)
     [ -f "zotero.bib" ] && cmd+=(--bibliography=zotero.bib)
     [ -f "packages.bib" ] && cmd+=(--bibliography=packages.bib)
     
@@ -154,31 +106,18 @@ PYTHON_SCRIPT
         --lua-filter fix-inner-parens.lua
         --lua-filter fix-titleblock.lua)
     
-    if [ "$use_move_figures" = true ]; then
-        cmd+=(--lua-filter move-figures.lua)
-    fi
-    
+    [ "$use_move_figures" = true ] && cmd+=(--lua-filter move-figures.lua)
     cmd+=(--reference-doc=latex7.dotx -o "$output")
     
-    # Run pandoc
     "${cmd[@]}"
-    
     local exit_code=$?
     
-    # Cleanup
-    if [ "$processed_input" != "$input" ]; then
-        command rm -f "$processed_input"
-    fi
+    [ "$processed_input" != "$input" ] && rm -f "$processed_input"
     
     if [ $exit_code -eq 0 ]; then
-        # Clean up generated TikZ images
-        if ls tikz_*.png >/dev/null 2>&1; then
-            echo "Cleaning up generated TikZ images..."
-            command rm -f tikz_*.png
-        fi
+        rm -f tikz_*.png
         echo "Conversion successful!"
     else
-        echo "Error: Pandoc conversion failed"
-        return 1
+        echo "Error: Pandoc conversion failed"; return 1
     fi
 }
