@@ -38,13 +38,6 @@ toword() {
         return 1
     fi
     
-    # Auto-detect TikZ usage
-    local has_tikz=false
-    if grep -q '\\begin{tikzpicture}' "$input"; then
-        has_tikz=true
-        echo "TikZ code detected - enabling TikZ processing"
-    fi
-    
     # Check for bibliography files
     local bib_files=("zotero.bib" "packages.bib")
     local missing_bibs=()
@@ -60,18 +53,97 @@ toword() {
         echo "Proceeding without these bibliography files..."
     fi
     
-    # Build the pandoc command
-    local cmd=(pandoc "$input")
+    # Check if TikZ preprocessing is needed
+    local processed_input="$input"
+    if grep -q '\\begin{tikzpicture}' "$input"; then
+        echo "TikZ code detected - preprocessing..."
+        processed_input="${input%.tex}_processed.tex"
+        
+        # Run TikZ preprocessing
+        python3 - <<'PYTHON_SCRIPT' "$input" "$processed_input"
+import sys
+import re
+import hashlib
+import os
+import subprocess
+
+input_file = sys.argv[1]
+output_file = sys.argv[2]
+
+with open(input_file, 'r') as f:
+    content = f.read()
+
+# Find all tikzpicture environments
+tikz_pattern = r'\\begin{tikzpicture}.*?\\end{tikzpicture}'
+matches = list(re.finditer(tikz_pattern, content, re.DOTALL))
+
+print(f"Found {len(matches)} TikZ picture(s)")
+
+# Process each TikZ block
+for match in reversed(matches):  # Reversed to maintain string positions
+    tikz_code = match.group(0)
     
-    # Only add raw_tex extension if TikZ is present
-    if [ "$has_tikz" = true ]; then
-        cmd+=(--from latex+raw_tex)
-        # CRITICAL: TikZ filter must run BEFORE pandoc-crossref
-        cmd+=(--lua-filter tikz-to-image.lua)
+    # Generate unique filename
+    hash_obj = hashlib.sha1(tikz_code.encode())
+    img_name = f"tikz_{hash_obj.hexdigest()[:16]}.png"
+    
+    if not os.path.exists(img_name):
+        print(f"Compiling: {img_name}")
+        
+        # Create standalone LaTeX document
+        tex_content = f"""\\documentclass{{standalone}}
+\\usepackage{{tikz}}
+\\usetikzlibrary{{positioning}}
+\\usetikzlibrary{{backgrounds}}
+\\usetikzlibrary{{arrows.meta}}
+\\usetikzlibrary{{calc}}
+\\usepackage{{graphicx}}
+\\begin{{document}}
+{tikz_code}
+\\end{{document}}
+"""
+        
+        tex_file = f"{img_name[:-4]}.tex"
+        pdf_file = f"{img_name[:-4]}.pdf"
+        
+        with open(tex_file, 'w') as f:
+            f.write(tex_content)
+        
+        # Compile to PDF
+        subprocess.run(['pdflatex', '-interaction=batchmode', tex_file],
+                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        
+        # Convert to PNG
+        subprocess.run(['convert', '-density', '300', pdf_file, img_name],
+                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        
+        # Cleanup
+        for ext in ['.tex', '.pdf', '.log', '.aux']:
+            try:
+                os.remove(f"{img_name[:-4]}{ext}")
+            except:
+                pass
+    
+    # Replace TikZ code with includegraphics
+    replacement = f"\\includegraphics{{{img_name}}}"
+    content = content[:match.start()] + replacement + content[match.end():]
+
+# Write processed file
+with open(output_file, 'w') as f:
+    f.write(content)
+
+print(f"Preprocessed file: {output_file}")
+PYTHON_SCRIPT
+        
+        if [ $? -ne 0 ]; then
+            echo "Error: TikZ preprocessing failed"
+            return 1
+        fi
     fi
     
-    # Now run pandoc-crossref AFTER TikZ images are generated
-    cmd+=(--filter pandoc-crossref)
+    # Build the pandoc command (no raw_tex needed now!)
+    local cmd=(pandoc "$processed_input"
+        --filter pandoc-crossref)
     
     # Add bibliography files only if they exist
     [ -f "zotero.bib" ] && cmd+=(--bibliography=zotero.bib)
@@ -90,18 +162,23 @@ toword() {
     
     # Run pandoc
     "${cmd[@]}"
-    local exit_status=$?
-
-    # Check if conversion was successful (or at least finished)
-    if [ $exit_status -eq 0 ]; then
-        # Use find to be safer and avoid globbing issues
+    
+    local exit_code=$?
+    
+    # Cleanup
+    if [ "$processed_input" != "$input" ]; then
+        command rm -f "$processed_input"
+    fi
+    
+    if [ $exit_code -eq 0 ]; then
+        # Clean up generated TikZ images
         if ls tikz_*.png >/dev/null 2>&1; then
             echo "Cleaning up generated TikZ images..."
             command rm -f tikz_*.png
         fi
+        echo "Conversion successful!"
     else
-        echo "Error: Pandoc conversion failed with exit code $exit_status."
-        echo "Keeping TikZ images for debugging."
+        echo "Error: Pandoc conversion failed"
         return 1
     fi
 }
