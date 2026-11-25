@@ -19,10 +19,9 @@ exports it to Word and back, and makes the files a journal asks for (anonymous o
 ├── 1-main-text.Rmd      Main text
 ├── 2-appendix1.Rmd      Appendix 1 (its own title block, references, numbering: Fig. S1.1)
 ├── 00_preamble.tex      The LaTeX preamble (and the switches of the variants)
-├── 01_title.tex         Title
-├── 01_authors.tex       Authors and affiliations (left out of an anonymous version)
-├── title_page.tex       The title page, for journals that ask for it apart
-├── cover_letter.tex     The cover letter
+├── 01_metadata.tex      Title, authors and affiliations (the authors: left out of an anonymous version)
+├── title_page.tex       The title page, for journals that ask for it apart (a document of its own)
+├── cover_letter.tex     The cover letter (a document of its own)
 └── .manuscript.lua      manuscript.nvim's options for this paper: a journal's variant
 ```
 
@@ -39,7 +38,7 @@ bibliography:
   # - packages.bib                # R packages' citations, once knitrmini::write_pkg_bib() wrote it
 ```
 
-The title and authors are LaTeX (`01_title.tex`, `01_authors.tex`, with `authblk`), so that an
+The title and authors are LaTeX (`01_metadata.tex`, with `authblk`), so that an
 anonymous version can leave the authors out.
 
 ## With manuscript.nvim
