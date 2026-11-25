@@ -1,4 +1,4 @@
-\titleblock
+\maketitle
 
 \begin{abstract}
 
@@ -16,7 +16,9 @@
 
 # Discussion
 
+\ifanonymous\else
 ## Acknowledgments {-}
+\fi
 
 # References
 

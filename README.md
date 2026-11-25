@@ -1,6 +1,13 @@
-# RMarkdown Paper Template
+# R Markdown Paper Template
 
-A template for writing scientific papers in RMarkdown, with a custom LaTeX template, APA bibliography support, line numbers, figure handling, and an optional Word export pipeline.
+A template for scientific papers written in **R Markdown**, knitted by
+[knitrmini](https://github.com/urtzienriquez/knitrmini) into clean, publication-ready LaTeX (no
+pandoc template: the prose goes through pandoc, the chunks as LaTeX, the document from a few YAML
+keys), with an APA bibliography, line numbers, appendices with their own references and numbering,
+and figures at the end when a journal asks for it.
+
+It is made for [manuscript.nvim](https://github.com/urtzienriquez/manuscript.nvim), which builds it,
+exports it to Word and back, and makes the files a journal asks for (anonymous or not).
 
 ---
 
@@ -8,119 +15,69 @@ A template for writing scientific papers in RMarkdown, with a custom LaTeX templ
 
 ```
 .
-├── 0-index.Rmd              # Entry point — YAML header lives here
-├── 1-main-text.Rmd          # Main manuscript text
-├── 2-appendix1.Rmd          # Appendix (optional)
-├── packages.bib             # Auto-generated R package citations
-├── template/
-│   ├── template.tex         # LaTeX template
-│   └── filter-affiliations.lua  # Lua filter for author/affiliation numbering
-└── toword/                  # Word export utilities (see below)
+├── 0-index.Rmd          Entry point: its YAML header, the setup chunk, the parts
+├── 1-main-text.Rmd      Main text
+├── 2-appendix1.Rmd      Appendix 1 (its own title block, references, numbering: Fig. S1.1)
+├── 00_preamble.tex      The LaTeX preamble (and the switches of the variants)
+├── 01_title.tex         Title
+├── 01_authors.tex       Authors and affiliations (left out of an anonymous version)
+├── title_page.tex       The title page, for journals that ask for it apart
+├── cover_letter.tex     The cover letter
+└── .manuscript.lua      manuscript.nvim's options for this paper: a journal's variant
 ```
 
----
+## The YAML header
 
-## YAML header options
-
-### Title and output
+knitrmini reads a few keys:
 
 ```yaml
-title: "Your paper title"
-
-output:
-  bookdown::pdf_document2:
-    template: "./template/template.tex"
-    keep_tex: true             # keep the intermediate .tex file
-    latex_engine: xelatex
-    citation_package: biblatex
-    pandoc_args:
-      - "--lua-filter=./template/filter-affiliations.lua"
-      # - "--variable=mainfont:Latin Modern Sans"  # uncomment to change font
-```
-
-### Authors
-
-Each author entry supports four fields:
-
-```yaml
-author:
-  - name: "First Last"
-    affiliation: "1"           # affiliation id(s), comma-separated: "1,2"
-    corresponding: true        # mark as corresponding author
-    email: "you@example.com"   # shown only if corresponding: true
-  - name: "Second Author"
-    affiliation: ""            # leave empty if no affiliation number needed
-```
-
-The Lua filter (`filter-affiliations.lua`) automatically renumbers affiliations in the order authors appear, so you don't need to manually keep IDs consistent.
-
-### Affiliations
-
-```yaml
-affiliations:
-  - id: "1"
-    text: "Department, University, City, Country"
-  - id: "2"
-    text: "Another Institute, City, Country"
-```
-
-IDs can be arbitrary strings — the filter will renumber them sequentially in the final output.
-
-### Bibliography
-
-```yaml
+documentclass: article
+classoption: 12pt
+preamble: 00_preamble.tex        # LaTeX files read before the document
 bibliography:
-  - /absolute/path/to/zotero.bib   # your main Zotero library
-  - ./packages.bib                  # R package citations (optional)
+  - /home/urtzi/Documents/zotero.bib
+  # - packages.bib                # R packages' citations, once knitrmini::write_pkg_bib() wrote it
 ```
 
-To regenerate `packages.bib` from your currently loaded R packages, uncomment this line in the setup chunk of `0-index.Rmd`:
+The title and authors are LaTeX (`01_title.tex`, `01_authors.tex`, with `authblk`), so that an
+anonymous version can leave the authors out.
+
+## With manuscript.nvim
+
+`:Manuscript new paper_template paper` makes a paper from this template (with
+`templates = "~/Templates"` in its setup). Then, from any of its files:
+
+| Command | |
+| --- | --- |
+| `:Manuscript build` | the PDF of the part you are in (`main-text.pdf`), or of the whole |
+| `:Manuscript build anon` | the same, anonymous; `review`: double spacing |
+| `:Manuscript export` / `merge` | Word files for your collaborators, and their edits back |
+| `:Manuscript submit geb` | the files for a journal: PDFs, and a zip of the LaTeX that compiles them |
+| `:Manuscript diff @geb` | the tracked changes since that submission |
+| `:Manuscript respond` | the response to the reviewers, from their comments |
+
+The switches (`\ifanonymous`, `\iffiguresatend`, `\ifdoublespacing`, `\ifdraftversion`) are set by the
+variant a build is made with, and are all off when the paper is knitted by hand. A journal's
+variant goes in `.manuscript.lua`:
+
+```lua
+return {
+  variants = {
+    geb = { anonymous = true, figuresatend = true },
+  },
+}
+```
+
+With `figuresatend`, the main text's figures go to its end (endfloat), with their captions; the
+appendices keep theirs in place (`\stopEndfloat` in `2-appendix1.Rmd`).
+
+## Knitting by hand
 
 ```r
-# knitr::write_bib(c(installed.packages()), "./packages.bib")
+knitrmini::knit("0-index.Rmd", engine = "pdflatex") # (or "lualatex": both work; pdfLaTeX is faster)
 ```
-
-### Figures at end
-
-```yaml
-figures_at_end: false   # true: collect all figures at end of document (journal style)
-                        # false: figures appear inline
-```
-
-When `true`, the template uses the `endfloat` LaTeX package to move all figures to the end, with a "Figure Captions" list preceding them. The `\stopEndfloat` command (placed manually in `2-appendix1.Rmd`) stops this behaviour for appendices.
-
-### Render params
-
-Control which child documents get compiled:
-
-```yaml
-params:
-  render_main: true        # render 1-main-text.Rmd
-  render_appendix1: false  # render 2-appendix1.Rmd
-```
-
-Set `render_appendix1: true` to include the appendix in the compiled PDF.
-
----
-
-## Word export
-
-The `toword/` folder contains a shell utility for converting the compiled `.tex` to `.docx` via pandoc. Copy your `.tex`, `.bib`, and `.csl` files into `toword/` and source the script:
-
-```bash
-source toword/convert-utils.sh
-toword -i manuscript.tex -o manuscript.docx        # basic
-toword -m -i manuscript.tex -o manuscript.docx     # move figures to end
-```
-
-**Dependencies for Word export:** `pandoc`, `pandoc-crossref`, and the Lua filters in `toword/`.
-
-The `fix-titleblock.lua` filter reconstructs the title block at the correct position in the Word document. You will need to update the `PAPER_TITLE` variable inside that file to match your paper's title.
-
----
 
 ## Dependencies
 
-- R packages: `rmarkdown`, `bookdown`, `knitr`
-- LaTeX: XeLaTeX distribution with `biblatex`, `biber`, `endfloat`, `lineno`, `siunitx`
-- Pandoc ≥ 2.19.1 (for Word export)
+- R with knitrmini (a version that knits `.Rmd` files) and pandoc
+- LaTeX with `latexmk`, `biber`, `biblatex`, `authblk`, `endfloat`, `lineno`, `siunitx`

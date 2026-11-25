@@ -1,26 +1,13 @@
-\documentclass[12pt,]{article}
+% the preamble (0-index.Rmd's YAML has knitrmini read it)
 
-\newcommand{\titleblock}{
-    \begin{center}
-        % title
-        \LARGE $title$
-
-        \vspace{1em}
-        % author list
-        \large
-        $for(author)$$author.name$$if(author.affiliation)$\textsuperscript{$author.affiliation$}$endif$$if(author.corresponding)$\textsuperscript{*}$endif$$sep$,\space
-$endfor$
-
-        \vspace{0.5em}
-        % affiliations
-        \small
-        $for(affiliations)$\textsuperscript{$affiliations.id$}$affiliations.text$ \par
-        $endfor$
-        % corresponding author
-        $for(author)$$if(author.corresponding)$\textsuperscript{*}Corresponding author: $author.email$$endif$$endfor$
-    \end{center}
-    \normalsize
-}
+% the switches of manuscript.nvim's variants (:Manuscript build anon, review, draft, or a journal's
+% in .manuscript.lua): all off when the paper is built otherwise
+\ifcsname ifanonymous\endcsname\else\expandafter\newif\csname ifanonymous\endcsname\fi
+\ifcsname ifdraftversion\endcsname\else\expandafter\newif\csname ifdraftversion\endcsname\fi
+\ifcsname iflinenumbers\endcsname\else\expandafter\newif\csname iflinenumbers\endcsname\fi
+\ifcsname ifdoublespacing\endcsname\else\expandafter\newif\csname ifdoublespacing\endcsname\fi
+\ifcsname iffiguresatend\endcsname\else\expandafter\newif\csname iffiguresatend\endcsname\fi
+\ifdoublespacing\usepackage{setspace}\doublespacing\fi
 
 % Options for packages loaded elsewhere
 \PassOptionsToPackage{unicode}{hyperref}
@@ -36,11 +23,11 @@ $endfor$
 % \usepackage{unicode-math} % this also loads fontspec
 % \defaultfontfeatures{Scale=MatchLowercase}
 % \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+% (under pdfLaTeX, accented letters as one glyph: searchable, hyphenated)
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+\fi
 \usepackage{lmodern}
-% set mainfont with pandoc_args
-$if(mainfont)$
-  \setmainfont[$for(mainfontoptions)$$mainfontoptions$$sep$,$endfor$]{$mainfont$}
-$endif$
 % Use upquote if available, for straight quotes in verbatim environments
 \IfFileExists{upquote.sty}{\usepackage{upquote}}{}
 \IfFileExists{microtype.sty}{% use microtype if available
@@ -77,11 +64,6 @@ $endif$
 \setcounter{secnumdepth}{5}
 
 \usepackage[style=apa, backend=biber]{biblatex}
-$if(bibliography)$
-$for(bibliography)$
-\addbibresource{$bibliography$}
-$endfor$
-$endif$
 \DeclareDelimFormat[bib,parencite]{finalnamedelim}{
   \ifnumgreater{\value{liststop}}{2}{\finalandcomma}{}
   \addspace\bibstring{and}\space}
@@ -107,7 +89,7 @@ $endif$
 \let\orig@addcontentsline\addcontentsline
 \makeatother
 
-$if(figures_at_end)$
+\iffiguresatend
   \usepackage[nomarkers]{endfloat}
   \renewcommand{\listfigurename}{Figure Captions}
   \usepackage{tocloft}
@@ -150,53 +132,12 @@ $if(figures_at_end)$
     }%
   }
   \makeatother
-$else$
+\else
   \newcommand{\stopEndfloat}{}
-$endif$
+\fi
 
 \usepackage{xcolor}
 \usepackage[margin=1in]{geometry}
-\usepackage{color}
-\usepackage{fancyvrb}
-\newcommand{\VerbBar}{|}
-\newcommand{\VERB}{\Verb[commandchars=\\\{\}]}
-\DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\}}
-% Add ',fontsize=\small' for more characters per line
-\usepackage{framed}
-\definecolor{shadecolor}{RGB}{248,248,248}
-\newenvironment{Shaded}{\begin{snugshade}}{\end{snugshade}}
-\newcommand{\AlertTok}[1]{\textcolor[rgb]{0.94,0.16,0.16}{#1}}
-\newcommand{\AnnotationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
-\newcommand{\AttributeTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{#1}}
-\newcommand{\BaseNTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
-\newcommand{\BuiltInTok}[1]{#1}
-\newcommand{\CharTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
-\newcommand{\CommentTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textit{#1}}}
-\newcommand{\CommentVarTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
-\newcommand{\ConstantTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{#1}}
-\newcommand{\ControlFlowTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
-\newcommand{\DataTypeTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{#1}}
-\newcommand{\DecValTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
-\newcommand{\DocumentationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
-\newcommand{\ErrorTok}[1]{\textcolor[rgb]{0.64,0.00,0.00}{\textbf{#1}}}
-\newcommand{\ExtensionTok}[1]{#1}
-\newcommand{\FloatTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
-\newcommand{\FunctionTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
-\newcommand{\ImportTok}[1]{#1}
-\newcommand{\InformationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
-\newcommand{\KeywordTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
-\newcommand{\NormalTok}[1]{#1}
-\newcommand{\OperatorTok}[1]{\textcolor[rgb]{0.81,0.36,0.00}{\textbf{#1}}}
-\newcommand{\OtherTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{#1}}
-\newcommand{\PreprocessorTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textit{#1}}}
-\newcommand{\RegionMarkerTok}[1]{#1}
-\newcommand{\SpecialCharTok}[1]{\textcolor[rgb]{0.81,0.36,0.00}{\textbf{#1}}}
-\newcommand{\SpecialStringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
-\newcommand{\StringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
-\newcommand{\VariableTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
-\newcommand{\VerbatimStringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
-\newcommand{\WarningTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
-
 \usepackage{float}
 \floatplacement{table}{H}
 \floatplacement{figure}{H}
@@ -216,7 +157,7 @@ $endif$
   filecolor={Maroon},
   citecolor={Blue},
   urlcolor={Blue},
-  pdfcreator={LaTeX via pandoc}}
+}
 
 \date{\vspace{-2.5em}}
 
@@ -224,8 +165,25 @@ $endif$
 \newcounter{appendix}
 \renewcommand{\theappendix}{Appendix \arabic{appendix}}
 
-\begin{document}
+% authors and affiliations
+\usepackage{authblk}
+\renewcommand*{\Affilfont}{\small\normalfont}
 
-$body$
+% title and authors (the authors: not in an anonymous version)
+\input{01_title}
+\input{01_authors}
+\date{}
 
-\end{document}
+% the title and authors again, for the appendices
+\makeatletter
+\let\papertitle\@title
+\let\paperauthors\@author
+\makeatother
+\newcommand{\titleblock}{
+  \begin{center}
+    {\LARGE \papertitle}
+    \vskip 1em
+    {\large \paperauthors}
+  \end{center}
+  \normalsize
+}

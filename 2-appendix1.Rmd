@@ -21,6 +21,8 @@
 
 # Some title
 
+\elandscape
+
 # References
 
 \printbibliography[heading=none]

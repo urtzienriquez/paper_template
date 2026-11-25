@@ -1,45 +1,19 @@
 ---
-title: 
-author:
-  - name: 
-    affiliation: # "1", "2", "3"
-    corresponding: # true|false
-    email: 
-affiliations:
-  - id: # "1", "2", "3"
-    text: # "Czech Academy of Sciences, Institute of Vertebrate Biology, Brno, Czech Republic"
-output:
-  bookdown::pdf_document2:
-    template: "./template/template.tex"
-    keep_tex: true
-    latex_engine: xelatex
-    citation_package: biblatex
-    pandoc_args:
-      - "--lua-filter=./template/filter-affiliations.lua"
-      # - "--variable=mainfont:Latin Modern Sans"
-bibliography: 
+documentclass: article
+classoption: 12pt
+preamble: 00_preamble.tex
+bibliography:
   - /home/urtzi/Documents/zotero.bib
-  - ./packages.bib
-figures_at_end: false
-params:
-    render_main: true
-    render_appendix1: false
+# (R packages' citations: knitrmini::write_pkg_bib() writes packages.bib, kept up to date; add it here)
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(
-  cache = TRUE,
-  autodep = TRUE,
-  echo = FALSE,
-  message = FALSE,
-  fig.path = "/home/urtzi/Documents/GitHub/alpestris_lineages/manuscript/0-index_files/figure-latex/"
-)
-# renv::load("..")
-# knitr::write_bib(c(installed.packages()), "./packages.bib")
+library(knitrmini)
+opts_chunk$set(cache = TRUE, autodep = TRUE, echo = FALSE, message = FALSE)
 ```
 
-```{r child="./1-main-text.Rmd", eval=params$render_main}
+```{r child="1-main-text.Rmd"}
 ```
 
-```{r child="./2-appendix1.Rmd", eval=params$render_appendix1}
+```{r child="2-appendix1.Rmd"}
 ```
